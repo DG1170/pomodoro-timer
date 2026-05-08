@@ -28,7 +28,8 @@
       "node_modules/alpinejs/**"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "signAndEditExecutable": false
     }
   }
 }
