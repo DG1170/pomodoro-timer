@@ -1,6 +1,6 @@
 {
   "name": "pomodoro-timer",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "桌面番茄钟",
   "main": "electron/main.js",
   "scripts": {
