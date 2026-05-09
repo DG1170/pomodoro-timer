@@ -1,5 +1,4 @@
-document.addEventListener('alpine:init', () => {
-  Alpine.data('pomodoroApp', () => ({
+Alpine.data('pomodoroApp', () => ({
     tab: 'timer',
     newTaskTitle: '',
     tasks: [],
@@ -110,6 +109,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     async init() {
+      try {
       if (window.api) {
         const [saved, tasks, stats] = await Promise.all([
           window.api.loadSettings(),
@@ -120,6 +120,7 @@ document.addEventListener('alpine:init', () => {
         this.tasks = tasks;
         this.stats = stats;
       }
+      } catch (e) { console.warn('加载数据失败，使用默认值:', e.message); }
       this._markStatsDirty();
       this.applyTheme(this.settings.theme);
       this.initTimer();
@@ -280,4 +281,4 @@ document.addEventListener('alpine:init', () => {
       this.toastTimer = setTimeout(() => { this.toastVisible = false; }, 2500);
     },
   }));
-});
+
