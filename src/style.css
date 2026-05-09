@@ -111,7 +111,7 @@ body {
   -webkit-app-region: drag;
 }
 
-button, input, select {
+button, input, select, .tab-btn, .btn, .task-item, .task-delete, .theme-dot {
   -webkit-app-region: no-drag;
   font-family: inherit;
 }

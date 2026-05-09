@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app" x-data="pomodoroApp" x-init="init()">
+  <div id="app" x-data="window.__pomodoroFactory()" x-init="init()" x-cloak>
 
     <!-- Tab 导航 -->
     <nav class="tabs">
@@ -17,20 +17,20 @@
       <button class="tab-btn" :class="{ active: tab === 'settings' }" @click="tab = 'settings'">⚙ 设置</button>
     </nav>
 
-    <!-- ===== 计时页 ===== -->
-    <div class="clock-area" x-show="tab === 'timer'" x-cloak>
+    <!-- ===== 计时器页 ===== -->
+    <div x-show="tab === 'timer'" class="clock-area">
 
       <div class="selected-task" x-show="selectedTask">
-        📌 <span x-text="selectedTask?.title"></span>
+        当前任务：<span x-text="selectedTask?.title"></span>
       </div>
 
-      <!-- 圆环进度环 -->
-      <div class="clock-ring" x-show="settings.clockStyle === 'ring'">
+      <!-- 环形进度 -->
+      <div x-show="settings.clockStyle === 'ring'" class="clock-ring">
         <svg viewBox="0 0 200 200">
           <circle class="bg-circle" cx="100" cy="100" r="90"/>
           <circle class="progress-circle" cx="100" cy="100" r="90"
-            :stroke-dasharray="2 * Math.PI * 90"
-            :stroke-dashoffset="2 * Math.PI * 90 * (1 - timerState.remaining / timerState.total)"/>
+            stroke-dasharray="565.48"
+            :stroke-dashoffset="timerState.total ? 565.48 * (timerState.total - timerState.remaining) / timerState.total : 0"/>
         </svg>
         <div class="time-display">
           <span class="time-text" x-text="formattedTime"></span>
@@ -38,72 +38,76 @@
         </div>
       </div>
 
-      <!-- 大号数字 -->
-      <div class="clock-big" x-show="settings.clockStyle === 'big'">
-        <span class="time-text" x-text="formattedTime"></span>
-        <span class="phase-text" x-text="phaseLabel"></span>
+      <!-- 大字数字 -->
+      <div x-show="settings.clockStyle === 'big'" class="clock-big">
+        <div class="time-text" x-text="formattedTime"></div>
+        <div class="phase-text" x-text="phaseLabel"></div>
         <div class="progress-bar-mini">
-          <div class="progress-bar-mini-fill" :style="{ width: timerState.remaining / timerState.total * 100 + '%' }"></div>
+          <div class="progress-bar-mini-fill"
+            :style="{ width: timerState.total ? (100 * (timerState.total - timerState.remaining) / timerState.total) + '%' : '0%' }"></div>
         </div>
       </div>
 
-      <!-- 横向进度条 + 数字 -->
-      <div class="clock-bar" x-show="settings.clockStyle === 'bar'">
+      <!-- 横向进度条 -->
+      <div x-show="settings.clockStyle === 'bar'" class="clock-bar">
         <div class="progress-bar">
-          <div class="progress-bar-fill" :style="{ width: timerState.remaining / timerState.total * 100 + '%' }"></div>
+          <div class="progress-bar-fill"
+            :style="{ width: timerState.total ? (100 * (timerState.total - timerState.remaining) / timerState.total) + '%' : '0%' }"></div>
         </div>
-        <span class="time-text" x-text="formattedTime"></span>
-        <span class="phase-text" x-text="phaseLabel"></span>
+        <div class="time-text" x-text="formattedTime"></div>
+        <div class="phase-text" x-text="phaseLabel"></div>
       </div>
 
       <!-- 模拟钟面 -->
-      <div class="clock-analog" x-show="settings.clockStyle === 'analog'">
-        <div class="hand hand-minute" :style="{ transform: 'rotate(' + analogHandAngle + 'deg)' }"></div>
+      <div x-show="settings.clockStyle === 'analog'" class="clock-analog">
+        <div class="hand hand-minute"
+          :style="{ transform: 'rotate(' + (timerState.total ? 360 * (timerState.total - timerState.remaining) / timerState.total : 0) + 'deg)' }"></div>
         <div class="center-dot"></div>
         <div class="time-text" x-text="formattedTime"></div>
       </div>
 
-      <!-- 控制按钮 -->
       <div class="btn-group">
-        <button class="btn btn-primary" @click="toggleTimer" x-text="timerState.isRunning ? '暂停' : '开始'"></button>
-        <button class="btn btn-outline" @click="skipPhase">跳过</button>
+        <button class="btn btn-primary" @click="toggleTimer()">
+          <span x-text="timerState.isRunning ? '暂停' : '开始'"></span>
+        </button>
+        <button class="btn btn-outline" @click="skipPhase()">跳过</button>
       </div>
 
       <!-- 番茄进度点 -->
       <div class="tomato-dots">
-        <template x-for="i in settings.longBreakInterval">
-          <span :class="{ empty: i > (timerState.workCount % settings.longBreakInterval) }">🍅</span>
+        <template x-for="(dot, idx) in cycleTomatoes" :key="idx">
+          <span :class="{ empty: !dot.filled }">🍅</span>
         </template>
-        <span style="font-size:12px;color:var(--text-muted);margin-left:6px;" x-text="'第 ' + (timerState.workCount % settings.longBreakInterval || settings.longBreakInterval) + '/' + settings.longBreakInterval + ' 个'"></span>
       </div>
     </div>
 
     <!-- ===== 任务页 ===== -->
-    <div x-show="tab === 'tasks'" x-cloak>
+    <div x-show="tab === 'tasks'" class="scroll-area">
       <div class="task-input-row">
-        <input class="input" type="text" placeholder="添加新任务..." x-model="newTaskTitle" @keyup.enter="addTask">
-        <button class="btn btn-primary btn-sm" @click="addTask">+</button>
+        <input class="input" type="text" placeholder="添加新任务..."
+          x-model="newTaskTitle" @keydown.enter="addTask()">
+        <button class="btn btn-primary btn-sm" @click="addTask()">添加</button>
       </div>
-      <div class="scroll-area" style="max-height:380px;">
-        <template x-for="task in sortedTasks" :key="task.id">
-          <div class="task-item"
-            :class="{ selected: selectedTask?.id === task.id, done: task.done }"
-            @click="selectTask(task)">
-            <span class="task-title" x-text="task.title"></span>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span class="task-pomos" x-text="(task.completed || 0) + '/' + task.estimated + ' 🍅'"></span>
-              <button class="task-delete" @click.stop="deleteTask(task.id)">✕</button>
-            </div>
+
+      <template x-for="task in sortedTasks" :key="task.id">
+        <div class="task-item"
+          :class="{ selected: selectedTask?.id === task.id, done: task.done }"
+          @click="selectTask(task)">
+          <div>
+            <div class="task-title" x-text="task.title"></div>
+            <div class="task-pomos" x-text="'🍅 ' + (task.completed || 0) + ' / ' + (task.estimated || 0)"></div>
           </div>
-        </template>
-        <p style="text-align:center;color:var(--text-muted);font-size:12px;margin-top:12px;" x-show="sortedTasks.length === 0">
-          还没有任务，添加一个吧
-        </p>
-      </div>
+          <button class="task-delete" @click.stop="deleteTask(task.id)">✕</button>
+        </div>
+      </template>
+
+      <p x-show="tasks.length === 0" style="text-align:center;color:var(--text-muted);padding:40px;">
+        暂无任务，添加一个吧
+      </p>
     </div>
 
     <!-- ===== 统计页 ===== -->
-    <div x-show="tab === 'stats'" x-cloak>
+    <div x-show="tab === 'stats'" class="scroll-area">
       <div class="stat-cards">
         <div class="stat-card">
           <div class="stat-num" x-text="statsData.today"></div>
@@ -119,114 +123,114 @@
         </div>
       </div>
 
-      <div class="card">
-        <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-bottom:8px;">本周番茄趋势</div>
+      <div class="card" x-show="statsData.week > 0">
         <div class="bar-chart">
-          <template x-for="(count, day) in statsData.weekBars">
+          <template x-for="(count, day) in statsData.weekBars" :key="day">
             <div class="bar-col">
               <div class="bar-fill" :class="{ empty: count === 0 }"
-                :style="{ height: Math.max(count / statsData.maxBar * 80, 4) + 'px' }"></div>
-              <span class="bar-label" x-text="day"></span>
+                :style="{ height: Math.max(4, count / (statsData.maxBar || 1) * 80) + 'px' }"></div>
+              <div class="bar-label" x-text="day"></div>
             </div>
           </template>
         </div>
       </div>
 
       <div class="card" x-show="statsData.taskBreakdown.length > 0">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">按任务统计</div>
-        <template x-for="tb in statsData.taskBreakdown">
-          <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:var(--text-secondary);">
-            <span x-text="tb.title"></span>
-            <span x-text="tb.count + ' 🍅'"></span>
+        <h3 style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">按任务分布</h3>
+        <template x-for="item in statsData.taskBreakdown" :key="item.title">
+          <div class="card-row" style="padding:4px 0;">
+            <span style="font-size:13px;" x-text="item.title"></span>
+            <span style="font-size:13px;color:var(--primary);font-weight:600;" x-text="item.count"></span>
           </div>
         </template>
       </div>
+
+      <p x-show="statsData.total === 0" style="text-align:center;color:var(--text-muted);padding:40px;">
+        暂无统计数据，完成番茄后将显示在此
+      </p>
     </div>
 
     <!-- ===== 设置页 ===== -->
-    <div x-show="tab === 'settings'" x-cloak>
-      <div class="scroll-area" style="max-height:420px;">
-
-        <div class="setting-group">
-          <h3>时长设置（分钟）</h3>
-          <div class="setting-row">
-            <label>工作时间</label>
-            <input type="number" min="1" max="120" x-model.number="settings.work" @change="saveSettingsDebounced">
-          </div>
-          <div class="setting-row">
-            <label>短休时间</label>
-            <input type="number" min="1" max="60" x-model.number="settings.shortBreak" @change="saveSettingsDebounced">
-          </div>
-          <div class="setting-row">
-            <label>长休时间</label>
-            <input type="number" min="1" max="120" x-model.number="settings.longBreak" @change="saveSettingsDebounced">
-          </div>
-          <div class="setting-row">
-            <label>长休间隔（轮）</label>
-            <input type="number" min="1" max="10" x-model.number="settings.longBreakInterval" @change="saveSettingsDebounced">
-          </div>
+    <div x-show="tab === 'settings'" class="scroll-area">
+      <div class="setting-group">
+        <h3>时长设置（分钟）</h3>
+        <div class="setting-row">
+          <label>工作时间</label>
+          <input type="number" min="1" max="120" x-model.number="settings.work" @change="saveSettingsDebounced()">
         </div>
-
-        <div class="setting-group">
-          <h3>主题配色</h3>
-          <div class="theme-preview">
-            <template x-for="t in themes" :key="t.id">
-              <div class="theme-dot"
-                :class="{ active: settings.theme === t.id }"
-                :style="{ background: t.color }"
-                :title="t.name"
-                @click="settings.theme = t.id; applyTheme(t.id)"></div>
-            </template>
-          </div>
+        <div class="setting-row">
+          <label>短休息</label>
+          <input type="number" min="1" max="30" x-model.number="settings.shortBreak" @change="saveSettingsDebounced()">
         </div>
-
-        <div class="setting-group">
-          <h3>时钟样式</h3>
-          <div class="setting-row">
-            <label>样式</label>
-            <select x-model="settings.clockStyle" @change="saveSettingsDebounced">
-              <option value="ring">圆环进度环</option>
-              <option value="big">大号数字</option>
-              <option value="bar">横向进度条</option>
-              <option value="analog">模拟钟面</option>
-            </select>
-          </div>
+        <div class="setting-row">
+          <label>长休息</label>
+          <input type="number" min="1" max="60" x-model.number="settings.longBreak" @change="saveSettingsDebounced()">
         </div>
-
-        <div class="setting-group">
-          <h3>通知方式</h3>
-          <div class="setting-row">
-            <label>系统通知</label>
-            <input type="checkbox" x-model="settings.notifications.system" @change="saveSettingsDebounced">
-          </div>
-          <div class="setting-row">
-            <label>提示音</label>
-            <input type="checkbox" x-model="settings.notifications.sound" @change="saveSettingsDebounced">
-          </div>
-          <div class="setting-row">
-            <label>窗口置顶</label>
-            <input type="checkbox" x-model="settings.notifications.alwaysOnTop" @change="saveSettingsDebounced">
-          </div>
+        <div class="setting-row">
+          <label>长休间隔（番茄数）</label>
+          <input type="number" min="1" max="10" x-model.number="settings.longBreakInterval" @change="saveSettingsDebounced()">
         </div>
+      </div>
 
-        <div class="setting-group">
-          <h3>数据管理</h3>
-          <div class="btn-group">
-            <button class="btn btn-outline btn-sm" @click="exportData">导出数据</button>
-            <button class="btn btn-outline btn-sm" @click="confirmReset" style="color:var(--danger);border-color:var(--danger);">重置数据</button>
-          </div>
+      <div class="setting-group">
+        <h3>时钟样式</h3>
+        <div class="setting-row">
+          <label>显示方式</label>
+          <select x-model="settings.clockStyle" @change="saveSettingsDebounced()">
+            <option value="ring">环形进度</option>
+            <option value="big">大字数字</option>
+            <option value="bar">横向进度条</option>
+            <option value="analog">模拟钟面</option>
+          </select>
         </div>
+      </div>
 
+      <div class="setting-group">
+        <h3>主题</h3>
+        <div class="theme-preview">
+          <template x-for="theme in themes" :key="theme.id">
+            <div class="theme-dot"
+              :class="{ active: settings.theme === theme.id }"
+              :style="{ background: theme.color }"
+              :title="theme.name"
+              @click="settings.theme = theme.id; saveSettingsDebounced()"></div>
+          </template>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <h3>通知</h3>
+        <div class="setting-row">
+          <label>系统通知</label>
+          <input type="checkbox" x-model="settings.notifications.system" @change="saveSettingsDebounced()">
+        </div>
+        <div class="setting-row">
+          <label>提示音</label>
+          <input type="checkbox" x-model="settings.notifications.sound" @change="saveSettingsDebounced()">
+        </div>
+        <div class="setting-row">
+          <label>完成后窗口置顶（5秒）</label>
+          <input type="checkbox" x-model="settings.notifications.alwaysOnTop" @change="saveSettingsDebounced()">
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <h3>数据管理</h3>
+        <div class="btn-group">
+          <button class="btn btn-outline btn-sm" @click="exportData()">导出数据</button>
+          <button class="btn btn-outline btn-sm"
+            style="color:var(--danger);border-color:var(--danger);"
+            @click="confirmReset()">重置数据</button>
+        </div>
       </div>
     </div>
 
-    <!-- Toast -->
+    <!-- Toast 提示 -->
     <div class="toast" :class="{ show: toastVisible }" x-text="toastMsg"></div>
-
   </div>
 
   <script src="timer.js"></script>
-  <script src="alpine.min.js"></script>
   <script src="app.js"></script>
+  <script src="alpine.min.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-Alpine.data('pomodoroApp', () => ({
+window.__pomodoroFactory = () => ({
     tab: 'timer',
     newTaskTitle: '',
     tasks: [],
@@ -49,6 +49,14 @@ Alpine.data('pomodoroApp', () => ({
 
     get analogHandAngle() {
       return (this.timerState.remaining / this.timerState.total) * 360;
+    },
+
+    get cycleTomatoes() {
+      const interval = this.settings.longBreakInterval;
+      const wc = this.timerState.workCount;
+      let filled = wc % interval;
+      if (this.timerState.phase !== 'work' && filled === 0 && wc > 0) filled = interval;
+      return Array.from({ length: interval }, (_, i) => ({ filled: i < filled }));
     },
 
     get sortedTasks() {
@@ -108,7 +116,10 @@ Alpine.data('pomodoroApp', () => ({
       return (this._statsCache = { today: todayStats.total, week: weekTotal, total: totalAll, weekBars, maxBar, taskBreakdown });
     },
 
+    _initCalled: false,
     async init() {
+      if (this._initCalled) return;
+      this._initCalled = true;
       try {
       if (window.api) {
         const [saved, tasks, stats] = await Promise.all([
@@ -280,5 +291,7 @@ Alpine.data('pomodoroApp', () => ({
       clearTimeout(this.toastTimer);
       this.toastTimer = setTimeout(() => { this.toastVisible = false; }, 2500);
     },
-  }));
+  });
+
+
 

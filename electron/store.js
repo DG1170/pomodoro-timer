@@ -77,10 +77,9 @@ class Store {
     }
     stats[today].total++;
 
-    let tasks = null;
+    const tasks = this.loadTasks();
     if (taskId) {
       stats[today].tasks[taskId] = (stats[today].tasks[taskId] || 0) + 1;
-      tasks = this.loadTasks();
       const task = tasks.find(t => t.id === taskId);
       if (task) {
         task.completed = (task.completed || 0) + 1;
